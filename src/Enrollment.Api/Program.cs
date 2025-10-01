@@ -28,3 +28,5 @@ app.MapGet("/", () => Results.Ok("EASV Enrollment API (Unofficial) is running âœ
 app.MapEnrollmentEndpoints();
 
 app.Run();
+
+public partial class Program { }
