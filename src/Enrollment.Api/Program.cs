@@ -1,3 +1,4 @@
+using Enrollment.Api;
 using Microsoft.AspNetCore.Http.HttpResults;
 
 var builder = WebApplication.CreateBuilder(args);
