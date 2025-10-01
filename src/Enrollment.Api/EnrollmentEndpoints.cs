@@ -1,4 +1,5 @@
-﻿using System.Reflection.Metadata.Ecma335;
+﻿using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Http.HttpResults;
 
 namespace Enrollment.Api;
 
@@ -9,8 +10,11 @@ public static class EnrollmentEndpoints
         app.MapPost("/enrollments", (EnrollmentRequest request) =>
         {
             if (request.StudentId == Guid.Empty || request.CourseId == Guid.Empty)
-                return Results.ValidationProblem(new() { ["Ids"] = new[] { "StudentId and CourseId must be valid GUIDs." }});
-
+                return Results.ValidationProblem(new Dictionary<string, string[]>
+                {
+                    ["Ids"] = new[] { "StudentId and CourseId must be valid GUIDs." }
+                });
+            
             var created = EnrollmentStore.Add(request.StudentId, request.CourseId);
             return Results.Created($"/enrollments/{created.Id}", created);
         });
