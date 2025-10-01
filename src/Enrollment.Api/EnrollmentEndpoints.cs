@@ -28,39 +28,31 @@ public static class EnrollmentEndpoints
 
         app.MapGet("/enrollments/{id:guid}", (Guid id) =>
         {
-            // For now: stubbed response
-            var response = new EnrollmentResponse(
-                id,
-                Guid.NewGuid(),
-                Guid.NewGuid(),
-                "Pending"
-            );
+            var enrollment = EnrollmentDb.Get(id);
 
-            return Results.Ok(response);
+            return enrollment is null
+                ? Results.NotFound(new { Message = $"Enrollment {id} not found." })
+                : Results.Ok(enrollment);
         });
 
         app.MapPost("/enrollments/{id:guid}/confirm", (Guid id) =>
         {
-            var reponse = new EnrollmentResponse(
-                id,
-                Guid.NewGuid(),
-                Guid.NewGuid(),
-                "Confirmed"
-            );
+            var result = EnrollmentDb.Confirm(id);
+            if (result is null) return Results.NotFound();
 
-            return Results.Ok(reponse);
+            return result.Status == "Conflict"
+                ? Results.Conflict(new { Message = "Enrollment not in Pending state." })
+                : Results.Ok(result);
         });
 
         app.MapPost("/enrollments/{id:guid}/cancel", (Guid id) =>
         {
-            var response = new EnrollmentResponse(
-                id,
-                Guid.NewGuid(),
-                Guid.NewGuid(),
-                "Cancelled"
-            );
+            var result = EnrollmentDb.Cancel(id);
+            if (result is null) return Results.NotFound();
 
-            return Results.Ok(response);
+            return result.Status == "Conflict"
+                ? Results.Conflict(new { Message = "Enrollment already completed/cancelled." })
+                : Results.Ok(result);
         });
 
         return app;
