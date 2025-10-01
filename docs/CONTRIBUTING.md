@@ -1,16 +1,22 @@
-﻿# Contributing & Branch Workflow
+﻿## Branching Strategy
 
-We follow a simple **GitHub Flow** style with semantic commit messages.
+We follow a **Git Flow-inspired workflow** with semantic commit messages.
 
-## Branches
-- `main` → production (auto-deploys to Fly.io).
-- `feature/*` → new features (merged via PR).
-- `fix/*` → bug fixes.
-- `chore/*` → CI/CD, tooling, docs.
+### Permanent branches
+- `main` → production branch, auto-deploys to Fly.io.
+- `develop` → integration branch, accumulates features for the next release.
 
-## Workflow
-1. **Create branch**
+### Supporting branches
+- `feature/*` → new features, branched from `develop`, merged back into `develop`.
+- `fix/*` → bug fixes, branched from `main`, merged into both `main` and `develop`.
+- `release/*` → optional, stabilize `develop` into a release before merging to `main`.
+- `chore/*` → CI/CD, tooling, docs improvements.
+
+### Workflow
+1. Start new work from `develop`:
    ```bash
+   git checkout develop
+   git pull
    git checkout -b feature/enrollment-confirm
 
 2. **Commit with semantic style**
