@@ -1,6 +1,6 @@
 ﻿namespace Enrollment.Api;
 
-public static class EnrollmentDb
+public static class EnrollmentStore
 {
     private static readonly Dictionary<Guid, EnrollmentResponse> Enrollments = new();
 
