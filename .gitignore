@@ -1,0 +1,46 @@
+﻿# Build outputs
+bin/
+obj/
+*.dll
+*.exe
+*.pdb
+*.cache
+*.log
+
+# User-specific files
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Rider / JetBrains
+.idea/
+*.iml
+*.ipr
+*.iws
+
+# Visual Studio
+.vs/
+
+# VS Code
+.vscode/
+
+# NuGet
+*.nupkg
+*.snupkg
+*.nuspec
+project.lock.json
+project.fragment.lock.json
+artifacts/
+
+# Docker
+*.dockerignore
+Dockerfile.*
+
+# Logs
+logs/
+*.log
+
+# Misc
+Thumbs.db
+*.DS_Store
