@@ -1,4 +1,5 @@
-﻿using System.Reflection.Metadata.Ecma335;
+﻿using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Http.HttpResults;
 
 namespace Enrollment.Api;
 
@@ -9,50 +10,33 @@ public static class EnrollmentEndpoints
         app.MapPost("/enrollments", (EnrollmentRequest request) =>
         {
             if (request.StudentId == Guid.Empty || request.CourseId == Guid.Empty)
-            {
                 return Results.ValidationProblem(new Dictionary<string, string[]>
                 {
                     ["Ids"] = new[] { "StudentId and CourseId must be valid GUIDs." }
                 });
-            }
-            var enrollmentId = Guid.NewGuid();
-            var response = new EnrollmentResponse(
-                enrollmentId,
-                request.StudentId,
-                request.CourseId,
-                "Pending"
-            );
-
-            return Results.Created($"/enrollments/{enrollmentId}", response);
+            
+            var created = EnrollmentStore.Add(request.StudentId, request.CourseId);
+            return Results.Created($"/enrollments/{created.Id}", created);
         });
 
+// Get by id
         app.MapGet("/enrollments/{id:guid}", (Guid id) =>
-        {
-            var enrollment = EnrollmentDb.Get(id);
+            EnrollmentStore.Get(id) is { } e ? Results.Ok(e) : Results.NotFound());
 
-            return enrollment is null
-                ? Results.NotFound(new { Message = $"Enrollment {id} not found." })
-                : Results.Ok(enrollment);
-        });
-
+// Confirm
         app.MapPost("/enrollments/{id:guid}/confirm", (Guid id) =>
         {
-            var result = EnrollmentDb.Confirm(id);
+            var result = EnrollmentStore.Confirm(id);
             if (result is null) return Results.NotFound();
-
-            return result.Status == "Conflict"
-                ? Results.Conflict(new { Message = "Enrollment not in Pending state." })
-                : Results.Ok(result);
+            return result.Status == "Conflict" ? Results.Conflict(new { Message = "Invalid state" }) : Results.Ok(result);
         });
 
+// Cancel
         app.MapPost("/enrollments/{id:guid}/cancel", (Guid id) =>
         {
-            var result = EnrollmentDb.Cancel(id);
+            var result = EnrollmentStore.Cancel(id);
             if (result is null) return Results.NotFound();
-
-            return result.Status == "Conflict"
-                ? Results.Conflict(new { Message = "Enrollment already completed/cancelled." })
-                : Results.Ok(result);
+            return result.Status == "Conflict" ? Results.Conflict(new { Message = "Invalid state" }) : Results.Ok(result);
         });
 
         return app;

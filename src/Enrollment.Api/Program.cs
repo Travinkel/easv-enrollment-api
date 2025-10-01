@@ -3,6 +3,10 @@ using Microsoft.AspNetCore.Http.HttpResults;
 
 var builder = WebApplication.CreateBuilder(args);
 
+builder.Services.AddDbContext<EnrollmentDbContext>(opt =>
+    opt.UseInMemoryDatabase("Enrollments")); 
+
+
 // CORS policy for web clients
 builder.Services.AddCors(options =>
 {
@@ -28,3 +32,5 @@ app.MapGet("/", () => Results.Ok("EASV Enrollment API (Unofficial) is running âœ
 app.MapEnrollmentEndpoints();
 
 app.Run();
+
+public partial class Program { }
