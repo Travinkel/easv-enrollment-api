@@ -70,5 +70,3 @@ public static class EnrollmentEndpoints
 }
 
 public record EnrollmentRequest(Guid StudentId, Guid CourseId);
-
-public record EnrollmentResponse(Guid Id, Guid StudentId, Guid CourseId, string Status);

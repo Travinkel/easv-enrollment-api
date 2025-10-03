@@ -5,7 +5,7 @@ using Microsoft.EntityFrameworkCore;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddDbContext<EnrollmentDbContext>(opt =>
-    opt.UseInMemoryDatabase("Enrollments")); 
+    opt.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection"))); 
 
 
 // CORS policy for web clients
@@ -28,6 +28,9 @@ app.UseCors("AllowWeb");
 
 // Root health check
 app.MapGet("/", () => Results.Ok("EASV Enrollment API (Unofficial) is running ✅"));
+
+// Configure the HTTP request pipeline.
+app.MapGet("/enrollment", async (EnrollmentDbContext db) => await db.Enrollments.ToListAsync());
 
 // Hook up enrollment endpoints
 app.MapEnrollmentEndpoints();
