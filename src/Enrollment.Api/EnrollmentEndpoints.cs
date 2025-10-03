@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
+using Microsoft.EntityFrameworkCore;
 
 namespace Enrollment.Api;
 
@@ -25,10 +26,16 @@ public static class EnrollmentEndpoints
                 Status = "Pending"
             };
 
-            db.Enrollments.Add(enrollment);
-            await db.SaveChangesAsync();
-
-            return Results.Created($"/enrollments/{enrollment.Id}", enrollment);
+            try
+            {
+                db.Enrollments.Add(enrollment);
+                await db.SaveChangesAsync();
+                return Results.Created($"/enrollments/{enrollment.Id}", enrollment);
+            }
+            catch (DbUpdateException ex) when (ex.InnerException?.Message.Contains("duplicate") == true)
+            {
+                return Results.Conflict(new { Message = "Student is already enrolled in this course." });
+            }
         });
 
         app.MapGet("/enrollments/{id:guid}", async (Guid id, EnrollmentDbContext db) =>
@@ -47,8 +54,17 @@ public static class EnrollmentEndpoints
                 return Results.Conflict(new { Message = "Enrollment not in Pending state." });
 
             enrollment.Status = "Confirmed";
-            await db.SaveChangesAsync();
-            return Results.Ok(enrollment);
+            
+            try
+            {
+                await db.SaveChangesAsync();
+                return Results.Ok(enrollment);
+            }
+            catch (DbUpdateConcurrencyException)
+            {
+                // Rare case: Two users try to confirm at once
+                return Results.Conflict(new { Message = "Concurrent update detected. Try Again." });
+            }
         });
 
         // Cancel enrollment
@@ -58,11 +74,19 @@ public static class EnrollmentEndpoints
             if (enrollment is null) return Results.NotFound();
 
             if (enrollment.Status == "Completed" || enrollment.Status == "Cancelled")
-                return Results.Conflict(new { Message = "Enrollment already completed/cancelled." });
+                return Results.Conflict(new { Message = "Enrollment already completed or cancelled." });
 
             enrollment.Status = "Cancelled";
-            await db.SaveChangesAsync();
-            return Results.Ok(enrollment);
+            
+            try
+            {
+                await db.SaveChangesAsync();
+                return Results.Ok(enrollment);
+            }
+            catch (DbUpdateConcurrencyException)
+            {
+                return Results.Conflict(new { Message = "Concurrent update detected. Try again." });
+            }
         });
 
         return app;

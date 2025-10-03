@@ -1,6 +1,7 @@
 using Enrollment.Api;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.OpenApi.Models;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -11,8 +12,21 @@ builder.Services.AddDbContext<EnrollmentDbContext>(opt =>
     opt.UseNpgsql(connectionString));
 
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
-    
+builder.Services.AddSwaggerGen(c =>
+{
+    c.SwaggerDoc("v1", new OpenApiInfo
+    {
+        Title = "EASV Enrollment API",
+        Version = "v1",
+        Description = "Minimal API slice demonstrating enrollment management (create, confirm, cancel).",
+        Contact = new OpenApiContact
+        {
+            Name = "Stefan Ankersø",
+            Url = new Uri("https://github.com/Travinkel/easv-enrollment-api")
+        }
+    });
+});
+
 // CORS policy for web clients
 builder.Services.AddCors(options =>
 {
@@ -29,13 +43,24 @@ builder.Services.AddCors(options =>
 var app = builder.Build();
 
 app.UseSwagger();
-app.UseSwaggerUI();
+app.UseSwaggerUI(c => { c.SwaggerEndpoint("/swagger/v1/swagger.json", "EASV Enrollment API v1"); });
 
 // Auto-migrate on startup
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<EnrollmentDbContext>();
     db.Database.Migrate();
+    
+    // Seed demo data if none exists
+    if (!db.Enrollments.Any())
+    {
+        db.Enrollments.AddRange(
+            new Enrollment.Api.Enrollment { StudentId = Guid.NewGuid(), CourseId = Guid.NewGuid(), Status = "Pending" },
+            new Enrollment.Api.Enrollment { StudentId = Guid.NewGuid(), CourseId = Guid.NewGuid(), Status = "Confirmed" },
+            new Enrollment.Api.Enrollment { StudentId = Guid.NewGuid(), CourseId = Guid.NewGuid(), Status = "Cancelled" }
+        );
+        db.SaveChanges();
+    }
 }
 
 // Enable CORS before routes
@@ -52,4 +77,6 @@ app.MapEnrollmentEndpoints();
 
 app.Run();
 
-public partial class Program { }
+public partial class Program
+{
+}
