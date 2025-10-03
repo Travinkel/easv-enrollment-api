@@ -4,10 +4,15 @@ using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
+var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
+                       ?? builder.Configuration["DATABASE_URL"];
+
 builder.Services.AddDbContext<EnrollmentDbContext>(opt =>
-    opt.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection"))); 
+    opt.UseNpgsql(connectionString));
 
-
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen();
+    
 // CORS policy for web clients
 builder.Services.AddCors(options =>
 {
@@ -22,6 +27,16 @@ builder.Services.AddCors(options =>
 });
 
 var app = builder.Build();
+
+app.UseSwagger();
+app.UseSwaggerUI();
+
+// Auto-migrate on startup
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<EnrollmentDbContext>();
+    db.Database.Migrate();
+}
 
 // Enable CORS before routes
 app.UseCors("AllowWeb");
