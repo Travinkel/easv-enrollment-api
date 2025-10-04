@@ -6,24 +6,20 @@ using Microsoft.AspNetCore.Mvc.Testing;
 
 namespace Enrollment.IntegrationTests;
 
-public class EnrollmentEdgeCaseTests : IClassFixture<ApiFactory>
+public class EnrollmentEdgeCaseTests : IntegrationTestBase
 {
-    private readonly HttpClient _client;
-    private readonly JsonSerializerOptions _json = new(JsonSerializerDefaults.Web);
-
-    public EnrollmentEdgeCaseTests(ApiFactory factory) => _client = factory.CreateClient();
-
+    public EnrollmentEdgeCaseTests(ApiFactory factory) : base(factory) { }
     [Fact]
     public async Task Duplicate_Insert_Returns_409_Conflict()
     {
         var student = Guid.NewGuid();
         var course = Guid.NewGuid();
         var req = new EnrollmentRequest(student, course);
-        var res1 = await _client.PostAsJsonAsync("/enrollments", req);
+        var res1 = await Client.PostAsJsonAsync("/enrollments", req);
         res1.StatusCode.Should().Be(HttpStatusCode.Created);
 
         // second insert with same pair should conflict (unique index)
-        var res2 = await _client.PostAsJsonAsync("/enrollments", req);
+        var res2 = await Client.PostAsJsonAsync("/enrollments", req);
         res2.StatusCode.Should().Be(HttpStatusCode.Conflict);
     }
 
@@ -39,10 +35,10 @@ public class EnrollmentEdgeCaseTests : IClassFixture<ApiFactory>
             CourseId = courseRaw
         };
 
-        var res = await _client.PostAsJsonAsync("/enrollments", payload);
+        var res = await Client.PostAsJsonAsync("/enrollments", payload);
         res.StatusCode.Should().Be(HttpStatusCode.BadRequest);
 
-        var problem = await res.Content.ReadFromJsonAsync<Dictionary<string, object>>(_json);
+        var problem = await res.Content.ReadFromJsonAsync<Dictionary<string, object>>(Json);
         problem!.Should().ContainKey("errors");
         var errors = problem["errors"] as JsonElement?;
         errors.HasValue.Should().BeTrue();
