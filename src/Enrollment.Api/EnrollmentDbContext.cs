@@ -15,7 +15,8 @@ public class EnrollmentDbContext : DbContext
             .IsConcurrencyToken();
         
         modelBuilder.Entity<Enrollment>()
-            .HasIndex(e => new { e.StudentId, e.CourseId });
+            .HasIndex(e => new { e.StudentId, e.CourseId })
+            .IsUnique();
     }
 }
 

@@ -8,9 +8,10 @@ public static class EnrollmentEndpoints
 {
     public static IEndpointRouteBuilder MapEnrollmentEndpoints(this IEndpointRouteBuilder app)
     {
-        app.MapPost("/enrollments", async (EnrollmentRequest request, EnrollmentDbContext db) =>
+        app.MapPost("/enrollments", async (EnrollmentCreateRequest request, EnrollmentDbContext db) =>
         {
-            if (request.StudentId == Guid.Empty || request.CourseId == Guid.Empty)
+            if (!Guid.TryParse(request.StudentId, out var studentId) || !Guid.TryParse(request.CourseId, out var courseId)
+                || studentId == Guid.Empty || courseId == Guid.Empty)
             {
                 return Results.ValidationProblem(new Dictionary<string, string[]>
                 {
@@ -18,11 +19,18 @@ public static class EnrollmentEndpoints
                 });
             }
 
+            // prevent duplicate insert up-front as an extra guard next to DB unique index
+            var existing = await db.Enrollments.AnyAsync(e => e.StudentId == studentId && e.CourseId == courseId);
+            if (existing)
+            {
+                return Results.Conflict(new { Message = "Student is already enrolled in this course." });
+            }
+
             var enrollment = new Enrollment
             {
                 Id = Guid.NewGuid(),
-                StudentId = request.StudentId,
-                CourseId = request.CourseId,
+                StudentId = studentId,
+                CourseId = courseId,
                 Status = "Pending"
             };
 
@@ -32,11 +40,18 @@ public static class EnrollmentEndpoints
                 await db.SaveChangesAsync();
                 return Results.Created($"/enrollments/{enrollment.Id}", enrollment);
             }
-            catch (DbUpdateException ex) when (ex.InnerException?.Message.Contains("duplicate") == true)
+            catch (DbUpdateException ex) when (ex.InnerException?.Message.Contains("duplicate") == true
+                                             || ex.InnerException?.Message.Contains("unique") == true)
             {
                 return Results.Conflict(new { Message = "Student is already enrolled in this course." });
             }
-        });
+        })
+        .WithName("CreateEnrollment")
+        .WithSummary("Create a new enrollment")
+        .WithDescription("Creates an enrollment in Pending state. Returns 201 on success, 409 if the student is already enrolled in the course, 400 for invalid GUIDs.")
+        .Produces<Enrollment>(StatusCodes.Status201Created)
+        .Produces(StatusCodes.Status409Conflict)
+        .ProducesProblem(StatusCodes.Status400BadRequest);
 
         app.MapGet("/enrollments/{id:guid}", async (Guid id, EnrollmentDbContext db) =>
         {
@@ -44,7 +59,12 @@ public static class EnrollmentEndpoints
             return enrollment is null
                 ? Results.NotFound(new { Message = $"Enrollment {id} not found." })
                 : Results.Ok(enrollment);
-        });
+        })
+        .WithName("GetEnrollmentById")
+        .WithSummary("Get enrollment by id")
+        .WithDescription("Returns a single enrollment by Id. 404 if not found.")
+        .Produces<Enrollment>(StatusCodes.Status200OK)
+        .Produces(StatusCodes.Status404NotFound);
         app.MapPost("/enrollments/{id:guid}/confirm", async (Guid id, EnrollmentDbContext db) =>
         {
             var enrollment = await db.Enrollments.FindAsync(id);
@@ -65,7 +85,13 @@ public static class EnrollmentEndpoints
                 // Rare case: Two users try to confirm at once
                 return Results.Conflict(new { Message = "Concurrent update detected. Try Again." });
             }
-        });
+        })
+        .WithName("ConfirmEnrollment")
+        .WithSummary("Confirm an enrollment")
+        .WithDescription("Transitions an enrollment from Pending to Confirmed. 404 if not found, 409 if not in Pending.")
+        .Produces<Enrollment>(StatusCodes.Status200OK)
+        .Produces(StatusCodes.Status404NotFound)
+        .Produces(StatusCodes.Status409Conflict);
 
         // Cancel enrollment
         app.MapPost("/enrollments/{id:guid}/cancel", async (Guid id, EnrollmentDbContext db) =>
@@ -87,10 +113,16 @@ public static class EnrollmentEndpoints
             {
                 return Results.Conflict(new { Message = "Concurrent update detected. Try again." });
             }
-        });
+        })
+        .WithName("CancelEnrollment")
+        .WithSummary("Cancel an enrollment")
+        .WithDescription("Cancels an enrollment unless it is already Completed or Cancelled. 404 if not found, 409 on invalid state.")
+        .Produces<Enrollment>(StatusCodes.Status200OK)
+        .Produces(StatusCodes.Status404NotFound)
+        .Produces(StatusCodes.Status409Conflict);
 
         return app;
     }
 }
 
-public record EnrollmentRequest(Guid StudentId, Guid CourseId);
+public record EnrollmentCreateRequest(string StudentId, string CourseId);

@@ -44,7 +44,7 @@ namespace Enrollment.Api.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("StudentId", "CourseId");
+                    b.HasIndex("StudentId", "CourseId").IsUnique();
 
                     b.ToTable("Enrollments");
                 });
